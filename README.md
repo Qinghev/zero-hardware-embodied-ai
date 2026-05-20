@@ -55,6 +55,12 @@
 
 打开后，直接从第一个带运行按钮的代码单元开始执行。顶部说明文字不是代码。
 
+如果 Colab 页面能打开但提示无法连接代码执行程序，先用这个最小测试判断是否是 GitHub notebook 连接问题：
+
+[打开 Colab smoke test](https://colab.research.google.com/github/Qinghev/zero-hardware-embodied-ai/blob/main/notebooks/colab_smoke_test.ipynb)
+
+如果 smoke test 也无法连接，尝试 `File -> Save a copy in Drive` 后再连接 runtime。
+
 如果你所在网络无法连接 Colab，可以直接使用下面的轻量本地版。它不需要安装 LeRobot，只下载 `lerobot/pusht` 的小型 parquet/mp4 文件并生成同样的基础图表。
 
 ```bash
