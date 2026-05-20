@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360" role="img" aria-label="Zero hardware embodied AI project overview">
+  <rect width="960" height="360" fill="#f7f8fb"/>
+  <rect x="48" y="42" width="864" height="276" rx="18" fill="#ffffff" stroke="#d9deea"/>
+  <text x="80" y="94" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#202738">Zero-Hardware Embodied AI Project 01</text>
+  <text x="80" y="128" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#596273">LeRobot dataset -> episode preview -> action analysis -> portfolio report</text>
+  <g transform="translate(80 166)">
+    <rect x="0" y="0" width="180" height="84" rx="10" fill="#eaf2ff" stroke="#9ab9f2"/>
+    <text x="22" y="35" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#24416b">Open Dataset</text>
+    <text x="22" y="59" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#40516a">LeRobot / HF Hub</text>
+    <path d="M195 42 L248 42" stroke="#7b8798" stroke-width="2"/>
+    <path d="M248 42 l-10 -7 v14 z" fill="#7b8798"/>
+  </g>
+  <g transform="translate(338 166)">
+    <rect x="0" y="0" width="180" height="84" rx="10" fill="#eef8f0" stroke="#9ed4a6"/>
+    <text x="22" y="35" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#24583a">Episode View</text>
+    <text x="22" y="59" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#45604e">frames + metadata</text>
+    <path d="M195 42 L248 42" stroke="#7b8798" stroke-width="2"/>
+    <path d="M248 42 l-10 -7 v14 z" fill="#7b8798"/>
+  </g>
+  <g transform="translate(596 166)">
+    <rect x="0" y="0" width="180" height="84" rx="10" fill="#fff5e8" stroke="#e6bd80"/>
+    <text x="22" y="35" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#694620">Action Plots</text>
+    <text x="22" y="59" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#715d43">time series + histogram</text>
+  </g>
+  <g transform="translate(795 151)">
+    <rect x="0" y="0" width="76" height="114" rx="8" fill="#f2f3f7" stroke="#cfd5df"/>
+    <polyline points="12,78 24,63 37,70 49,42 64,56" fill="none" stroke="#3766A6" stroke-width="3"/>
+    <rect x="12" y="22" width="52" height="7" rx="2" fill="#9aa6b7"/>
+    <rect x="12" y="34" width="38" height="7" rx="2" fill="#c0c7d2"/>
+    <rect x="12" y="92" width="52" height="6" rx="2" fill="#c0c7d2"/>
+  </g>
+</svg>

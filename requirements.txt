@@ -1,0 +1,8 @@
+lerobot==0.4.4
+huggingface_hub>=0.25,<1.0
+matplotlib>=3.8
+numpy>=1.26
+pandas>=2.2
+pillow>=10
+ipykernel>=6.29
+jupyterlab>=4.2
