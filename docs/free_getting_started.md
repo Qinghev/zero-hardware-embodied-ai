@@ -2,6 +2,19 @@
 
 ## 1. 创建环境
 
+如果你无法访问 Colab，建议先跑轻量本地版：
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements-lite.txt
+python scripts/visualize_pusht_lite.py --episode-index 0
+```
+
+轻量版不安装 LeRobot，只用于快速生成 demo 图，验证这个方向在普通电脑上可行。
+
+如果要使用完整 LeRobot API，再创建完整环境：
+
 ```bash
 conda env create -f environment.yml
 conda activate zero-embodied

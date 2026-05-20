@@ -55,6 +55,15 @@
 Runtime -> Change runtime type -> Hardware accelerator: None
 ```
 
+如果你所在网络无法连接 Colab，可以直接使用下面的轻量本地版。它不需要安装 LeRobot，只下载 `lerobot/pusht` 的小型 parquet/mp4 文件并生成同样的基础图表。
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements-lite.txt
+python scripts/visualize_pusht_lite.py --episode-index 0
+```
+
 ## Local Quick Start
 
 推荐使用 conda/miniforge。这个仓库的免费版固定使用 `lerobot==0.4.4`，Python 版本要求为 3.10+；本仓库默认给出 Python 3.11 环境。
