@@ -11,6 +11,9 @@ assets/episode_*.png
 assets/episode_*.gif
 assets/episode_*.mp4
 .tmp*/
+exports/
+content/video_01/frames/
+content/video_01/concat.txt
 
 .DS_Store
 Thumbs.db
