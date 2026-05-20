@@ -51,9 +51,9 @@
 
 项目 01 不需要 GPU。Colab 里建议选择：
 
-```text
-Runtime -> Change runtime type -> Hardware accelerator: None
-```
+`Runtime -> Change runtime type -> Hardware accelerator: None`
+
+打开后，直接从第一个带运行按钮的代码单元开始执行。顶部说明文字不是代码。
 
 如果你所在网络无法连接 Colab，可以直接使用下面的轻量本地版。它不需要安装 LeRobot，只下载 `lerobot/pusht` 的小型 parquet/mp4 文件并生成同样的基础图表。
 
