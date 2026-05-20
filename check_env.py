@@ -38,12 +38,12 @@ def check_import(package_name: str) -> bool:
 
 def check_python() -> bool:
     current = sys.version_info
-    ok = current >= (3, 12)
+    ok = current >= (3, 10)
     status = "OK" if ok else "FAIL"
     print(f"[{status}] Python: {platform.python_version()} ({platform.system()} {platform.machine()})")
     if not ok:
-        print("      This project uses Python >= 3.12 to match current LeRobot installation guidance.")
-        print("      Create the conda env from environment.yml.")
+        print("      This project uses lerobot==0.4.4, which requires Python >= 3.10.")
+        print("      Create an isolated environment from environment.yml or use the Colab notebook.")
     return ok
 
 
@@ -90,12 +90,17 @@ def check_lerobot_dataset_api() -> bool:
 def main() -> int:
     print("Zero-Hardware Embodied AI environment check\n")
 
-    checks = [check_python(), check_ffmpeg()]
-    checks.extend(check_import(package) for package in REQUIRED_PACKAGES)
-    checks.append(check_lerobot_dataset_api())
+    required_checks = [check_python()]
+    required_checks.extend(check_import(package) for package in REQUIRED_PACKAGES)
+    required_checks.append(check_lerobot_dataset_api())
+
+    optional_checks = [check_ffmpeg()]
 
     print("\nSummary")
-    if all(checks):
+    if all(required_checks):
+        if not all(optional_checks):
+            print("[WARN] Required Python packages are ready, but one optional system tool is missing.")
+            print("       If video decoding fails later, install ffmpeg through conda-forge.")
         print("[OK] Environment is ready for the free project scripts.")
         return 0
 

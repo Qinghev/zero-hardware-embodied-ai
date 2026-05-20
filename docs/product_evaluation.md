@@ -32,7 +32,7 @@
 4. 安全叙事要谨慎  
    第一版应避开 async inference、gRPC、policy server、未知 pickle/model 文件，只做本地可审计脚本。
 
-   当前免费版固定使用 PyPI 可安装的 `lerobot==0.4.4`，并且只覆盖 dataset visualization，不触碰远程推理服务和真实机器人控制链路。
+   当前免费版固定使用 PyPI 可安装的 `lerobot==0.4.4`，Python 要求为 3.10+，并且只覆盖 dataset visualization，不触碰远程推理服务和真实机器人控制链路。
 
 5. 付费边界要清楚  
    免费版太弱无法获客，免费版太强会削弱付费动机。建议免费版给“能跑的结果”，付费版卖“报告、质量分析、简历、面试、FAQ 和节省时间”。

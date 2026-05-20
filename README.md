@@ -1,5 +1,7 @@
 # Zero-Hardware Embodied AI Project 01
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Qinghev/zero-hardware-embodied-ai/blob/main/notebooks/colab_quick_start.ipynb)
+
 不用真实机器人，也能跑通第一个具身智能项目。
 
 这个免费版仓库聚焦一个足够小、足够可展示的项目：用 LeRobot 数据集完成 episode 读取、图像帧抽样、action 时序与分布可视化，并生成可放进作品集的基础结果。
@@ -7,6 +9,16 @@
 > 产品定位：不是 LeRobot 教程，而是“零硬件具身智能求职项目包”的免费样例。
 
 ![Project overview](assets/demo_overview.svg)
+
+## Demo 输出
+
+下面三张图来自 `lerobot/pusht` 数据集的 episode 0。
+
+![Episode first frame](assets/demo_first_frame.png)
+
+![Action time series](assets/demo_action_timeseries.png)
+
+![Action distribution](assets/demo_action_distribution.png)
 
 ## 你会做出什么
 
@@ -31,9 +43,21 @@
 - 想直接控制真实机器人
 - 需要一对一环境调试
 
-## Quick Start
+## Colab Quick Start
 
-推荐使用 conda/miniforge。这个仓库的免费版固定使用当前 PyPI 可安装的 `lerobot==0.4.4`，并按 LeRobot 当前安装建议使用 Python 3.12 环境。
+最省事的方式是直接打开 Colab：
+
+[打开 Colab 一键运行](https://colab.research.google.com/github/Qinghev/zero-hardware-embodied-ai/blob/main/notebooks/colab_quick_start.ipynb)
+
+项目 01 不需要 GPU。Colab 里建议选择：
+
+```text
+Runtime -> Change runtime type -> Hardware accelerator: None
+```
+
+## Local Quick Start
+
+推荐使用 conda/miniforge。这个仓库的免费版固定使用 `lerobot==0.4.4`，Python 版本要求为 3.10+；本仓库默认给出 Python 3.11 环境。
 
 ```bash
 conda env create -f environment.yml

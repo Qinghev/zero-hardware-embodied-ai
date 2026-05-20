@@ -7,7 +7,7 @@ conda env create -f environment.yml
 conda activate zero-embodied
 ```
 
-如果你已经有 Python 3.12 环境，也可以直接：
+如果你已经有 Python 3.10+ 环境，也可以直接：
 
 ```bash
 pip install -r requirements.txt

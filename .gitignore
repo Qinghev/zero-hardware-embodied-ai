@@ -7,9 +7,10 @@ __pycache__/
 data/
 reports/*.json
 reports/*.html
-assets/*.png
-assets/*.gif
-assets/*.mp4
+assets/episode_*.png
+assets/episode_*.gif
+assets/episode_*.mp4
+.tmp*/
 
 .DS_Store
 Thumbs.db
