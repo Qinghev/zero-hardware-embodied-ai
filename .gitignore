@@ -10,10 +10,17 @@ reports/*.html
 assets/episode_*.png
 assets/episode_*.gif
 assets/episode_*.mp4
+assets/录音机-*.wav
+assets/*voice_raw*.*
 .tmp*/
 exports/
 content/video_01/frames/
+content/video_01/final_frames/
+content/video_01/final_clips/
 content/video_01/concat.txt
+content/video_01/final_concat.txt
+content/video_01/final_motion_concat.txt
+content/video_01/final_build_metadata.json
 
 .DS_Store
 Thumbs.db
