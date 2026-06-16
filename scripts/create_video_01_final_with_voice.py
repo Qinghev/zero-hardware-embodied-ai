@@ -9,7 +9,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageOps
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -151,39 +151,183 @@ def load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(FONT_BOLD if bold else FONT_REGULAR, size)
 
 
-def draw_text(
+COLORS = {
+    "ink": "#111827",
+    "muted": "#475569",
+    "subtle": "#6B7280",
+    "teal": "#2F6F73",
+    "teal_dark": "#17484C",
+    "teal_soft": "#E7F1F0",
+    "amber": "#D97706",
+    "amber_soft": "#FFF4D6",
+    "blue_soft": "#EAF2FF",
+    "paper": "#FFFFFF",
+    "canvas": "#F5F7FA",
+    "line": "#D7E1EA",
+    "footer": "#101827",
+}
+
+
+def text_width(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> int:
+    box = draw.textbbox((0, 0), text, font=font)
+    return box[2] - box[0]
+
+
+def wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str]:
+    tokens = re.findall(r"[A-Za-z0-9_./:%#+-]+|\s+|.", text)
+    lines: list[str] = []
+    line = ""
+    for token in tokens:
+        if token.isspace():
+            token = " " if line and not line.endswith(" ") else ""
+        candidate = line + token
+        if candidate and text_width(draw, candidate.rstrip(), font) <= max_width:
+            line = candidate
+            continue
+        if line:
+            lines.append(line.rstrip())
+            line = token.lstrip()
+        if line and text_width(draw, line, font) > max_width:
+            long_token = line
+            line = ""
+            for char in long_token:
+                candidate = line + char
+                if line and text_width(draw, candidate, font) > max_width:
+                    lines.append(line)
+                    line = char
+                else:
+                    line = candidate
+    if line.strip():
+        lines.append(line.rstrip())
+    return lines or [""]
+
+
+def line_height(font: ImageFont.FreeTypeFont, line_gap: int) -> int:
+    return int(font.size * 1.18) + line_gap
+
+
+def ellipsize(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> str:
+    marker = "..."
+    while text and text_width(draw, text + marker, font) > max_width:
+        text = text[:-1]
+    return text.rstrip() + marker if text else marker
+
+
+def draw_fit_text(
     draw: ImageDraw.ImageDraw,
     xy: tuple[int, int],
     text: str,
-    font: ImageFont.FreeTypeFont,
-    fill: str,
     max_width: int,
-    line_gap: int = 12,
+    max_height: int,
+    max_size: int,
+    min_size: int,
+    fill: str,
+    bold: bool = False,
+    line_gap: int = 8,
+    max_lines: int | None = None,
 ) -> int:
     x, y = xy
-    line = ""
-    lines: list[str] = []
-    for char in text:
-        candidate = line + char
-        if line and draw.textbbox((0, 0), candidate, font=font)[2] > max_width:
-            lines.append(line)
-            line = char
-        else:
-            line = candidate
-    if line:
-        lines.append(line)
-    for line in lines:
-        draw.text((x, y), line, font=font, fill=fill)
-        y += font.size + line_gap
+    selected_font = load_font(min_size, bold)
+    selected_lines = wrap_text(draw, text, selected_font, max_width)
+    selected_height = line_height(selected_font, line_gap)
+    for size in range(max_size, min_size - 1, -2):
+        font = load_font(size, bold)
+        lines = wrap_text(draw, text, font, max_width)
+        row_h = line_height(font, line_gap)
+        total_h = len(lines) * row_h - line_gap
+        if (max_lines is None or len(lines) <= max_lines) and total_h <= max_height:
+            selected_font = font
+            selected_lines = lines
+            selected_height = row_h
+            break
+    allowed_lines = max(1, min(len(selected_lines), max_height // max(1, selected_height)))
+    if max_lines is not None:
+        allowed_lines = min(allowed_lines, max_lines)
+    lines_to_draw = selected_lines[:allowed_lines]
+    if len(selected_lines) > allowed_lines:
+        lines_to_draw[-1] = ellipsize(draw, lines_to_draw[-1], selected_font, max_width)
+    for line in lines_to_draw:
+        draw.text((x, y), line, font=selected_font, fill=fill)
+        y += selected_height
     return y
 
 
-def rounded(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], fill: str, outline: str = "#D6DEE8") -> None:
-    draw.rounded_rectangle(box, radius=28, fill=fill, outline=outline, width=2)
+def draw_centered_fit(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    text: str,
+    max_size: int,
+    min_size: int,
+    fill: str,
+    bold: bool = False,
+) -> None:
+    x1, y1, x2, y2 = box
+    for size in range(max_size, min_size - 1, -2):
+        font = load_font(size, bold)
+        lines = wrap_text(draw, text, font, x2 - x1 - 22)
+        row_h = line_height(font, 2)
+        if len(lines) * row_h <= y2 - y1 - 18:
+            break
+    else:
+        font = load_font(min_size, bold)
+        lines = wrap_text(draw, text, font, x2 - x1 - 22)[:2]
+    total_h = len(lines) * line_height(font, 2) - 2
+    y = y1 + (y2 - y1 - total_h) // 2
+    for line in lines:
+        x = x1 + (x2 - x1 - text_width(draw, line, font)) // 2
+        draw.text((x, y), line, font=font, fill=fill)
+        y += line_height(font, 2)
 
 
-def paste_contain(canvas: Image.Image, path: Path, box: tuple[int, int, int, int], padding: int = 0) -> None:
+def rounded(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    fill: str,
+    outline: str = "#D6DEE8",
+    radius: int = 28,
+    width: int = 2,
+) -> None:
+    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
+
+
+def card(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    fill: str = "#FFFFFF",
+    outline: str = "#D7E1EA",
+    radius: int = 28,
+) -> None:
+    x1, y1, x2, y2 = box
+    draw.rounded_rectangle((x1 + 8, y1 + 10, x2 + 8, y2 + 10), radius=radius, fill="#E8EEF5")
+    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2)
+
+
+def trim_near_white(img: Image.Image, threshold: int = 246, margin: int = 10) -> Image.Image:
+    rgb = img.convert("RGB")
+    bg = Image.new("RGB", rgb.size, (255, 255, 255))
+    diff = ImageChops.difference(rgb, bg).convert("L")
+    mask = diff.point(lambda value: 255 if value > 255 - threshold else 0)
+    box = mask.getbbox()
+    if not box:
+        return rgb
+    x1, y1, x2, y2 = box
+    x1 = max(0, x1 - margin)
+    y1 = max(0, y1 - margin)
+    x2 = min(rgb.width, x2 + margin)
+    y2 = min(rgb.height, y2 + margin)
+    return rgb.crop((x1, y1, x2, y2))
+
+
+def paste_contain(
+    canvas: Image.Image,
+    path: Path,
+    box: tuple[int, int, int, int],
+    padding: int = 0,
+    trim_white: bool = False,
+) -> None:
     img = Image.open(path).convert("RGB")
+    if trim_white:
+        img = trim_near_white(img)
     x1, y1, x2, y2 = box
     x1 += padding
     y1 += padding
@@ -203,113 +347,252 @@ def paste_cover(canvas: Image.Image, path: Path, box: tuple[int, int, int, int])
 
 
 def draw_header(draw: ImageDraw.ImageDraw, scene_no: int) -> None:
-    draw.rectangle((0, 0, WIDTH, 22), fill="#2F6F73")
-    draw.rectangle((0, HEIGHT - 88, WIDTH, HEIGHT), fill="#101827")
-    draw.text((72, HEIGHT - 58), "Zero-Hardware Embodied AI Project 01", font=load_font(28), fill="#E5E7EB")
-    draw.text((WIDTH - 230, HEIGHT - 58), f"{scene_no:02d}/{len(SCENES):02d}", font=load_font(28), fill="#CBD5E1")
+    draw.rectangle((0, 0, WIDTH, 18), fill=COLORS["teal"])
+    draw.rectangle((0, HEIGHT - 78, WIDTH, HEIGHT), fill=COLORS["footer"])
+    draw.text((72, HEIGHT - 51), "Zero-Hardware Embodied AI Project 01", font=load_font(25), fill="#E5E7EB")
+    dots_x = WIDTH - 520
+    for i in range(len(SCENES)):
+        x = dots_x + i * 28
+        fill = "#F59E0B" if i + 1 == scene_no else "#334155"
+        draw.rounded_rectangle((x, HEIGHT - 44, x + 18, HEIGHT - 26), radius=9, fill=fill)
+    draw.text((WIDTH - 152, HEIGHT - 51), f"{scene_no:02d}/{len(SCENES):02d}", font=load_font(25, True), fill="#CBD5E1")
 
 
-def draw_bullets(draw: ImageDraw.ImageDraw, bullets: list[str], x: int, y: int, width: int) -> None:
-    bullet_font = load_font(36)
-    for bullet in bullets:
-        draw.ellipse((x, y + 12, x + 20, y + 32), fill="#D97706")
-        y = draw_text(draw, (x + 42, y), bullet, bullet_font, "#293548", width - 42, 12) + 14
+def draw_background(draw: ImageDraw.ImageDraw) -> None:
+    draw.rectangle((0, 0, WIDTH, HEIGHT), fill=COLORS["canvas"])
+    draw.polygon([(0, 18), (620, 18), (520, HEIGHT - 78), (0, HEIGHT - 78)], fill="#F9FBFC")
+    draw.rectangle((0, 18, WIDTH, 20), fill="#DBE8E8")
+    draw.line((970, 116, 970, HEIGHT - 168), fill="#E4EBF2", width=2)
 
 
-def draw_title_block(draw: ImageDraw.ImageDraw, scene: Scene) -> None:
-    draw_text(draw, (82, 80), scene.title, load_font(64, True), "#101827", 930, 16)
-    draw_text(draw, (86, 238), scene.subtitle, load_font(35), "#2F6F73", 920, 10)
-    draw_bullets(draw, scene.bullets, 92, 342, 840)
+def draw_badge(draw: ImageDraw.ImageDraw, xy: tuple[int, int], text: str, fill: str = "#E7F1F0") -> None:
+    x, y = xy
+    font = load_font(22, True)
+    w = text_width(draw, text, font) + 34
+    draw.rounded_rectangle((x, y, x + w, y + 38), radius=19, fill=fill, outline="#C5DDDA", width=1)
+    draw.text((x + 17, y + 7), text, font=font, fill=COLORS["teal_dark"])
 
 
-def draw_browser_mock(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], title: str, lines: list[str]) -> None:
+def draw_bullet_panel(
+    canvas: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    bullets: list[str],
+    heading: str = "本页要点",
+) -> None:
     x1, y1, x2, y2 = box
-    rounded(draw, box, "#FFFFFF")
-    draw.rounded_rectangle((x1, y1, x2, y1 + 66), radius=28, fill="#EEF3F8", outline="#D6DEE8", width=2)
+    card(draw, box, "#FFFFFF")
+    draw_badge(draw, (x1 + 34, y1 + 28), heading, "#FFF4D6")
+    available_h = y2 - y1 - 112
+    row_h = max(74, available_h // max(1, len(bullets)))
+    for i, bullet in enumerate(bullets, start=1):
+        row_y = y1 + 96 + (i - 1) * row_h
+        draw.rounded_rectangle((x1 + 34, row_y + 6, x1 + 82, row_y + 54), radius=16, fill=COLORS["teal_soft"])
+        draw.text((x1 + 51, row_y + 17), str(i), font=load_font(24, True), fill=COLORS["teal_dark"])
+        draw_fit_text(
+            draw,
+            (x1 + 108, row_y + 4),
+            bullet,
+            x2 - x1 - 150,
+            row_h - 8,
+            34,
+            25,
+            "#293548",
+            line_gap=4,
+            max_lines=2,
+        )
+
+
+def draw_title_block(canvas: Image.Image, draw: ImageDraw.ImageDraw, scene: Scene, index: int) -> None:
+    draw_badge(draw, (78, 78), f"PROJECT 01 · STEP {index:02d}")
+    title_bottom = draw_fit_text(
+        draw,
+        (78, 140),
+        scene.title,
+        830,
+        140,
+        60,
+        42,
+        COLORS["ink"],
+        bold=True,
+        line_gap=4,
+        max_lines=2,
+    )
+    subtitle_y = max(260, title_bottom + 16)
+    subtitle_bottom = draw_fit_text(
+        draw,
+        (82, subtitle_y),
+        scene.subtitle,
+        820,
+        92,
+        34,
+        25,
+        COLORS["teal"],
+        line_gap=4,
+        max_lines=2,
+    )
+    bullet_top = max(392, subtitle_bottom + 26)
+    draw_bullet_panel(canvas, draw, (74, bullet_top, 912, 842), scene.bullets)
+
+
+def draw_note_strip(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    text: str,
+    fill: str = "#E7F1F0",
+) -> None:
+    x1, y1, x2, y2 = box
+    draw.rounded_rectangle(box, radius=22, fill=fill, outline="#C5DDDA", width=1)
+    draw_fit_text(draw, (x1 + 24, y1 + 17), text, x2 - x1 - 48, y2 - y1 - 24, 25, 18, COLORS["teal_dark"], bold=True, max_lines=2)
+
+
+def draw_browser_mock(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    title: str,
+    lines: list[str],
+    note: str | None = None,
+) -> None:
+    x1, y1, x2, y2 = box
+    card(draw, box, "#FFFFFF")
+    draw.rounded_rectangle((x1, y1, x2, y1 + 68), radius=28, fill="#EEF3F8", outline="#D6DEE8", width=2)
     draw.ellipse((x1 + 28, y1 + 24, x1 + 44, y1 + 40), fill="#EF4444")
     draw.ellipse((x1 + 56, y1 + 24, x1 + 72, y1 + 40), fill="#F59E0B")
     draw.ellipse((x1 + 84, y1 + 24, x1 + 100, y1 + 40), fill="#22C55E")
-    draw.text((x1 + 130, y1 + 20), title, font=load_font(24), fill="#475569")
-    y = y1 + 110
-    for line in lines:
-        draw.text((x1 + 48, y), line, font=load_font(30), fill="#172033")
-        y += 52
+    draw_fit_text(draw, (x1 + 130, y1 + 18), title, x2 - x1 - 160, 34, 24, 18, "#475569", max_lines=1)
+    y = y1 + 104
+    note_reserved = 104 if note else 0
+    for i, line in enumerate(lines, start=1):
+        if y + 66 > y2 - 32 - note_reserved:
+            break
+        row_fill = "#F8FAFC" if i % 2 else "#F1F5F9"
+        draw.rounded_rectangle((x1 + 36, y, x2 - 36, y + 58), radius=16, fill=row_fill)
+        draw.text((x1 + 58, y + 16), f"{i:02d}", font=load_font(20, True), fill="#94A3B8")
+        draw_fit_text(draw, (x1 + 112, y + 12), line, x2 - x1 - 176, 34, 28, 20, "#172033", max_lines=1)
+        y += 72
+    if note:
+        draw_note_strip(draw, (x1 + 36, y2 - 104, x2 - 36, y2 - 34), note)
 
 
 def draw_terminal(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], lines: list[str]) -> None:
     x1, y1, x2, y2 = box
+    draw.rounded_rectangle((x1 + 8, y1 + 10, x2 + 8, y2 + 10), radius=24, fill="#C7D2DE")
     draw.rounded_rectangle(box, radius=24, fill="#111827")
-    draw.text((x1 + 28, y1 + 24), "PowerShell", font=load_font(24), fill="#94A3B8")
-    y = y1 + 80
-    mono = load_font(28)
+    draw.text((x1 + 28, y1 + 22), "PowerShell", font=load_font(22), fill="#94A3B8")
+    y = y1 + 72
     for line in lines:
-        draw.text((x1 + 32, y), line, font=mono, fill="#E5E7EB")
+        draw_fit_text(draw, (x1 + 32, y), line, x2 - x1 - 64, 44, 25, 18, "#E5E7EB", max_lines=1)
         y += 48
 
 
 def draw_flow(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], labels: list[str]) -> None:
     x1, y1, x2, y2 = box
-    rounded(draw, box, "#FFFFFF")
-    step_w = 190
-    gap = 50
-    start_x = x1 + 70
-    y = y1 + 220
+    card(draw, box, "#FFFFFF")
+    draw_badge(draw, (x1 + 38, y1 + 34), "学习路径")
+    step_w = max(164, (x2 - x1 - 160) // len(labels))
+    gap = 28
+    start_x = x1 + 56
+    y = y1 + (y2 - y1 - 124) // 2 + 42
     for i, label in enumerate(labels):
         sx = start_x + i * (step_w + gap)
-        draw.rounded_rectangle((sx, y, sx + step_w, y + 120), radius=22, fill="#EAF2F1", outline="#A8C9C7", width=2)
-        draw.text((sx + 22, y + 38), label, font=load_font(30, True), fill="#2F6F73")
+        draw.rounded_rectangle((sx, y, sx + step_w, y + 120), radius=24, fill="#EAF2F1", outline="#A8C9C7", width=2)
+        draw_centered_fit(draw, (sx + 12, y + 18, sx + step_w - 12, y + 102), label, 29, 18, "#2F6F73", True)
         if i < len(labels) - 1:
             ax = sx + step_w + 12
             draw.line((ax, y + 60, ax + gap - 24, y + 60), fill="#64748B", width=4)
             draw.polygon([(ax + gap - 24, y + 50), (ax + gap - 24, y + 70), (ax + gap - 8, y + 60)], fill="#64748B")
 
 
+def draw_image_card(
+    canvas: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    path: Path,
+    label: str,
+    trim_white: bool = True,
+    caption: str | None = None,
+) -> None:
+    x1, y1, x2, y2 = box
+    card(draw, box, "#FFFFFF")
+    draw_fit_text(draw, (x1 + 28, y1 + 20), label, x2 - x1 - 56, 36, 26, 18, COLORS["muted"], bold=True, max_lines=1)
+    content_bottom = y2 - 116 if caption else y2 - 24
+    paste_contain(canvas, path, (x1 + 24, y1 + 70, x2 - 24, content_bottom), 4, trim_white=trim_white)
+    if caption:
+        draw_note_strip(draw, (x1 + 28, y2 - 98, x2 - 28, y2 - 28), caption, "#FFF4D6")
+
+
 def render_scene(scene: Scene, index: int, output: Path) -> None:
-    canvas = Image.new("RGB", (WIDTH, HEIGHT), "#F8FAFC")
+    canvas = Image.new("RGB", (WIDTH, HEIGHT), COLORS["canvas"])
     draw = ImageDraw.Draw(canvas)
-    draw_header(draw, index)
+    draw_background(draw)
 
     if scene.layout in {"hook", "end"}:
-        paste_cover(canvas, CONTENT_DIR / "avatar_tech_narrator.png", (0, 22, WIDTH, HEIGHT - 88))
+        paste_cover(canvas, CONTENT_DIR / "avatar_tech_narrator.png", (0, 18, WIDTH, HEIGHT - 78))
         overlay = Image.new("RGBA", (WIDTH, HEIGHT), (248, 250, 252, 0))
         od = ImageDraw.Draw(overlay)
-        od.rectangle((0, 22, 980, HEIGHT - 88), fill=(248, 250, 252, 236))
+        od.rectangle((0, 18, 1020, HEIGHT - 78), fill=(248, 250, 252, 240))
+        od.rectangle((0, 18, 1020, HEIGHT - 78), outline=(214, 225, 234, 255), width=2)
         canvas = Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
         draw = ImageDraw.Draw(canvas)
-        draw_header(draw, index)
-        draw_title_block(draw, scene)
+        draw_badge(draw, (84, 92), "零硬件具身智能项目包")
+        draw_fit_text(
+            draw,
+            (84, 168),
+            scene.title,
+            820,
+            170,
+            66,
+            44,
+            COLORS["ink"],
+            bold=True,
+            max_lines=2,
+        )
+        draw_fit_text(
+            draw,
+            (88, 372),
+            scene.subtitle,
+            800,
+            88,
+            34,
+            24,
+            COLORS["teal"],
+            max_lines=2,
+        )
+        draw_bullet_panel(canvas, draw, (84, 520, 898, 818), scene.bullets, "你会得到")
         if scene.layout == "end":
             draw_terminal(
                 draw,
-                (1080, 650, 1800, 810),
+                (1068, 666, 1804, 824),
                 ["github.com/Qinghev/zero-hardware-embodied-ai"],
             )
     else:
-        draw_title_block(draw, scene)
-        card = (1030, 160, 1810, 835)
+        draw_title_block(canvas, draw, scene, index)
+        panel = (1014, 128, 1834, 842)
         if scene.layout == "collage":
-            rounded(draw, card, "#FFFFFF")
-            paste_contain(canvas, ROOT / "assets" / "demo_first_frame.png", (1080, 205, 1330, 455), 8)
-            paste_contain(canvas, ROOT / "assets" / "demo_action_timeseries.png", (1340, 205, 1770, 455), 8)
-            paste_contain(canvas, ROOT / "assets" / "demo_action_distribution.png", (1080, 505, 1770, 785), 8)
+            card(draw, panel, "#F8FAFC")
+            draw_image_card(canvas, draw, (1050, 184, 1384, 486), ROOT / "assets" / "demo_first_frame.png", "episode first frame", False)
+            draw_image_card(canvas, draw, (1410, 184, 1798, 486), ROOT / "assets" / "demo_action_timeseries.png", "action time series", True)
+            draw_image_card(canvas, draw, (1050, 528, 1798, 812), ROOT / "assets" / "demo_action_distribution.png", "action distribution", True)
         elif scene.layout == "concept":
-            draw_flow(draw, card, ["episode", "observation", "action"])
+            draw_flow(draw, panel, ["episode", "observation", "action"])
         elif scene.layout == "github":
             draw_browser_mock(
                 draw,
-                card,
+                panel,
                 "github.com/Qinghev/zero-hardware-embodied-ai",
                 [
-                    "# Zero-Hardware Embodied AI Project 01",
-                    "[Open in Colab]",
+                    "# Zero-Hardware Embodied AI",
+                    "Open in Colab",
                     "Local lite: requirements-lite.txt",
+                    "scripts/visualize_pusht_lite.py",
                     "assets/demo_action_timeseries.png",
                 ],
+                note="双入口的目的：Colab 适合快速试，本地轻量版负责兜底。",
             )
         elif scene.layout == "colab":
             draw_browser_mock(
                 draw,
-                card,
+                panel,
                 "colab.research.google.com",
                 [
                     "Runtime: None",
@@ -317,22 +600,44 @@ def render_scene(scene: Scene, index: int, output: Path) -> None:
                     "!python scripts/visualize_pusht_lite.py",
                     "Generated: first frame / action plots",
                 ],
+                note="这个项目只读数据和画图，所以不用 GPU，也不需要先训练模型。",
             )
         elif scene.layout == "first_frame":
-            rounded(draw, card, "#FFFFFF")
-            paste_contain(canvas, ROOT / "assets" / "demo_first_frame.png", card, 70)
+            draw_image_card(
+                canvas,
+                draw,
+                panel,
+                ROOT / "assets" / "demo_first_frame.png",
+                "PushT episode first frame",
+                False,
+                "先看首帧，确认任务场景和轨迹对象，再继续分析 action。",
+            )
         elif scene.layout == "timeseries":
-            rounded(draw, card, "#FFFFFF")
-            paste_contain(canvas, ROOT / "assets" / "demo_action_timeseries.png", card, 50)
+            draw_image_card(
+                canvas,
+                draw,
+                panel,
+                ROOT / "assets" / "demo_action_timeseries.png",
+                "action[0] / action[1] over time",
+                True,
+                "这张图回答一个问题：动作值是平滑变化，还是有明显跳变？",
+            )
         elif scene.layout == "distribution":
-            rounded(draw, card, "#FFFFFF")
-            paste_contain(canvas, ROOT / "assets" / "demo_action_distribution.png", card, 50)
+            draw_image_card(
+                canvas,
+                draw,
+                panel,
+                ROOT / "assets" / "demo_action_distribution.png",
+                "action distribution",
+                True,
+                "分布图适合做数据质量检查：范围、集中区间、异常值。",
+            )
         elif scene.layout == "portfolio":
-            draw_flow(draw, card, ["GitHub", "notebook", "plots", "summary"])
+            draw_flow(draw, panel, ["GitHub", "notebook", "plots", "summary"])
         elif scene.layout == "resume":
             draw_browser_mock(
                 draw,
-                card,
+                panel,
                 "Resume project snippet",
                 [
                     "LeRobot dataset analysis",
@@ -340,12 +645,14 @@ def render_scene(scene: Scene, index: int, output: Path) -> None:
                     "Observation/action structure",
                     "Trajectory statistics",
                 ],
+                note="简历表达不要写大词，写清楚你读了什么数据、产出了什么图。",
             )
         elif scene.layout == "roadmap":
-            draw_flow(draw, card, ["Project 01", "BC / ACT", "VLA eval"])
+            draw_flow(draw, panel, ["Project 01", "BC / ACT", "VLA eval"])
         else:
-            rounded(draw, card, "#FFFFFF")
+            card(draw, panel, "#FFFFFF")
 
+    draw_header(draw, index)
     output.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(output)
 
