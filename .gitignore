@@ -14,6 +14,8 @@ assets/录音机-*.wav
 assets/*voice_raw*.*
 .tmp*/
 exports/
+project-pack/
+dist/
 content/video_01/frames/
 content/video_01/final_frames/
 content/video_01/final_clips/
